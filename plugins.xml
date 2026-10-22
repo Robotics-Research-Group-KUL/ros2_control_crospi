@@ -1,0 +1,5 @@
+<library path="ros2_control_crospi">
+  <class type="etasl::ros2_control_crospi" base_class_type="etasl::RobotDriver">
+    <description>This is a plugin template compatible with etasl ROS2 node.</description>
+  </class>
+</library>

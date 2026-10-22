@@ -1,0 +1,45 @@
+{
+    "$schema": "http://json-schema.org/draft-06/schema",
+    "$id":"ros2_control_crospi.json",
+    "type":"object",
+    "properties":{
+        "is-ros2_control_crospi" : {
+            "description":"To indicate that the tasks will be executed using the ros2_control_crospi driver when running on the real robot.",
+            "type":"boolean",
+            "const": true
+          }
+    },
+    "required":["is-ros2_control_crospi"],
+    "additionalProperties": true,
+    "dependencies":{
+        "is-ros2_control_crospi":{
+          "required":["robot_joints","initial_joints", "periodicity"],
+          "properties":{
+              "robot_joints": {
+                "description":"Names of the joints that will be interfaced through this robot driver. This names need to be consistent with the ones declared in the URDF file of the robot and must exist also in the robot_joints declared in the default_robot_specification.",
+                "type":"array",
+                "items": {"type": "string"},
+                "default": [
+                    "shoulder_pan_joint",
+                    "shoulder_lift_joint",
+                    "elbow_joint",
+                    "wrist_1_joint",
+                    "wrist_2_joint",
+                    "wrist_3_joint"
+                ]
+            },
+            "initial_joints" : {
+                "description":"Initial joint values in [rad] for rotational joints or [m] for prismatic joints. The size must coincide with the length of the robot_joints of the specified robot.",
+                "type":"array",
+                "items": {"type": "number"},
+                "default": [0.0, 0.0 ,0.0 ,0.0 ,0.0 ,0.0]
+            },
+            "periodicity" : {
+                "description":"Periodicity in which the integration will be performed in seconds. 1/periodicity is the update frequency in Hz.",
+                "type":"number",
+                "default": 0.01
+            }
+          }
+        }
+      }
+}
