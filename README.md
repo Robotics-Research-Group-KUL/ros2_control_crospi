@@ -102,6 +102,72 @@ ros2 run ros2_control_crospi test_ros2_control_crospi \
 ros2 run crospi_core crospi_node --ros-args -p config_file:="\$[ros2_control_crospi]/config/ur10e_mock_hardware.setup.json" -p simulation:=true
 ```
 
+## Running the Crospi tutorial examples with ros2_control
+
+The first two examples of the [Running examples](https://rob.pages.gitlab.kuleuven.be/crospi/markdown/basic_tutorials/running_examples/)
+tutorial can be executed with this driver and the UR10e mock hardware, instead of the `simple_kinematic_simulation`.
+[config/ur10e_mock_hardware_tutorials.setup.json](config/ur10e_mock_hardware_tutorials.setup.json) is the setup
+file of the tutorial (`application_example_tutorials.setup.json`, same eTaSL settings, robot specification and
+IO handlers) in which the robot driver/simulator is replaced by `ros2_control_crospi` with the
+`ur_mocked.urdf.xacro` description of `ur_description` (`mock_components/GenericSystem`). The mock hardware starts
+at the same initial joints as the tutorial
+([config/ur10e_tutorials_initial_positions.yaml](config/ur10e_tutorials_initial_positions.yaml)).
+
+Requirements: the [crospi_application_template](https://github.com/Robotics-Research-Group-KUL/crospi_application_template)
+and [ur_description](https://github.com/UniversalRobots/Universal_Robots_ROS2_Description) packages in your
+workspace (or `sudo apt install ros-$ROS_DISTRO-ur-description`), and the dependencies of [Installation](#installation).
+Remember to `source install/setup.bash` in every terminal, and to run the commands from the root of your workspace.
+
+### 1. Execute the launch file with RViz
+
+In a first terminal, launch the robot state publisher and RViz of the tutorial (RViz shows the `/joint_states`
+published by the crospi_node, which here come from the ros2_control mock hardware):
+
+```bash
+ros2 launch crospi_application_template application_example_tutorials.launch.py
+```
+
+### 2. Run the Crospi node
+
+In a second terminal, run the crospi_node with the ros2_control setup file:
+
+```bash
+ros2 run crospi_core crospi_node --ros-args -p config_file:="\$[ros2_control_crospi]/config/ur10e_mock_hardware_tutorials.setup.json" -p simulation:=true
+```
+
+The output shows that the hardware `ur` is loaded from the plugin `mock_components/GenericSystem`, configured and
+activated, and that the velocity command interfaces of the six joints are claimed. The setup file contains the same
+ros2_control entry in `robotsimulators` and in `robotdrivers`, so `simulation:=false` behaves the same way (with a
+real robot, only the `robotdrivers` entry would change, see [the UR example](#example-real-ur-e-series-robot-ur_robot_driver)).
+
+### 3. Run the orchestration
+
+#### Example 1
+
+In a third terminal, run the single task that performs a sine wave in the last joint:
+
+```bash
+cd src/crospi_application_template/skill_specifications/libraries/skill_lib_example/skill_for_debug_sine_wave_last_joint/
+python3 skill_for_debug_sine_wave_last_joint.py
+```
+
+The 6th joint moves in a sine wave for 5 s and the script ends with `Runner finished with outcome SUCCEED`.
+
+#### Example 2
+
+In the third terminal, run the finite state machine:
+
+```bash
+cd src/crospi_application_template/skill_specifications/libraries/skill_lib_example/skill_example_loop_fsm/
+python3 skill_example_loop_fsm.py
+```
+
+The robot moves home, down, up and along a spline, and repeats this loop forever (`Ctrl-C` to stop the script).
+
+> **Warning:** `Ctrl-C` stops the BetFSM script, but the crospi task that is running continues. Stop the crospi_node
+> (`Ctrl-C`) to stop the robot: the driver then sends a zero velocity command and deactivates and shuts down the
+> ros2_control hardware. Only one crospi_node can run at a time.
+
 ## Configuration
 
 Add an entry to `robotdrivers` (or `robotsimulators`) in the `robot` field of your setup JSON. The complete reference,
