@@ -31,18 +31,25 @@
                         "wrist_2_joint",
                         "wrist_3_joint"
                     ],
-                    "periodicity": 0.01,
-                    "robot_description_path": "$[ur_description]/urdf/ur_mocked.urdf.xacro",
+                    "periodicity": 0.002,
+                    "robot_description_path": "$[ur_robot_driver]/urdf/ur.urdf.xacro",
                     "xacro_arguments": {
                         "name": "ur",
                         "ur_type": "ur10e",
-                        "initial_positions_file": "$[ros2_control_crospi]/config/ur10e_tutorials_initial_positions.yaml"
+                        "robot_ip": "192.168.1.102",
+                        "script_filename": "$[ur_client_library]/resources/external_control.urscript",
+                        "input_recipe_filename": "$[ur_robot_driver]/resources/rtde_input_recipe.txt",
+                        "output_recipe_filename": "$[ur_robot_driver]/resources/rtde_output_recipe.txt"
                     },
                     "command_interface": "velocity",
                     "hardware_components": [
                         "ur"
                     ],
-                    "ros_node_name": "ros2_control_crospi_driver"
+                    "initialization_timeout": 10.0,
+                    "ros_node_name": "ros2_control_crospi_driver",
+                    "force_torque_sensor_name": "tcp_fts_sensor",
+                    "name_expr_joint_vel": "joint_vel",
+                    "name_expr_cartesian_wrench": "wrench_input"
                 }
             ],
             "robotsimulators": [
@@ -61,18 +68,22 @@
                     "xacro_arguments": {
                         "name": "ur",
                         "ur_type": "ur10e",
-                        "initial_positions_file": "$[ros2_control_crospi]/config/ur10e_tutorials_initial_positions.yaml"
+                        "initial_positions_file": "$[ros2_control_crospi]/config/ur10e_initial_positions.yaml"
                     },
                     "command_interface": "velocity",
                     "hardware_components": [
                         "ur"
                     ],
-                    "ros_node_name": "ros2_control_crospi_simulator"
+                    "initialization_timeout": 5.0,
+                    "ros_node_name": "ros2_control_crospi_simulator",
+                    "force_torque_sensor_name": "tcp_fts_sensor",
+                    "name_expr_joint_vel": "joint_vel",
+                    "name_expr_cartesian_wrench": "wrench_input"
                 }
             ],
             "default_robot_specification": {
                 "is-inline_robotspecification": true,
-                "urdf_path": "$[crospi_application_template]/robot_models/urdf_models/robot_setups/ur10e/use_case_setup_ur10e.urdf",
+                "urdf_path": "$[crospi_application_template]/robot_models/urdf_models/robot_setups/ur10e/ur10e_cylinder_tool.urdf",
                 "tcp_frame": {
                     "child_link": "tool0",
                     "parent_link": "base_link"
@@ -80,7 +91,7 @@
                 "additional_frames": [
                     {
                         "name": "FT_sensor_frame",
-                        "child_link": "ft_frame",
+                        "child_link": "tool0",
                         "parent_link": "base_link"
                     }
                 ],
@@ -102,17 +113,20 @@
                 },
                 {
                     "is-TopicOutputHandler": true,
-                    "topic-name": "/my_topic",
-                    "variable-names": []
-                },
-                {
-                    "is-TopicOutputHandler": true,
                     "topic-name": "/forces_etasl",
                     "variable-names": [
                         "x_force",
                         "y_force",
-                        "z_force"
+                        "z_force",
+                        "x_torque",
+                        "y_torque",
+                        "z_torque"
                     ]
+                },
+                {
+                    "is-TopicOutputHandler": true,
+                    "topic-name": "/my_topic",
+                    "variable-names": []
                 },
                 {
                     "is-TopicOutputDerivativesHandler": true,

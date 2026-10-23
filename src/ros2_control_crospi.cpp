@@ -134,7 +134,9 @@ void ros2_control_crospi::construct(std::string robot_name,
         }
     }
 
-    robot_description_path_ = ros2_control_crospi_utils::resolve_path(jsonchecker->asString(config, "robot_description_path"));
+    // $[package] / package:// in the path and in the xacro arguments are resolved in initialize(), so that a missing
+    // package (e.g. the hardware package of a real robot) is reported as an initialization failure.
+    robot_description_path_ = jsonchecker->asString(config, "robot_description_path");
 
     xacro_arguments_.clear();
     if (jsonchecker->is_member(config, "xacro_arguments")) {
@@ -148,7 +150,7 @@ void ros2_control_crospi::construct(std::string robot_name,
                 throw std::runtime_error(fmt::format("[{}] xacro argument '{}' must be a string, number or boolean.",
                                                      PLUGIN_NAME, key));
             }
-            xacro_arguments_.emplace_back(key, etasl::string_interpolate(value.asString()));  // $[package] and ${ENV}
+            xacro_arguments_.emplace_back(key, value.asString());
         }
     }
 
@@ -214,8 +216,21 @@ bool ros2_control_crospi::initialize()
     std::lock_guard<std::mutex> lock(hardware_mutex_);
 
     try {
-        const std::string robot_description =
-            ros2_control_crospi_utils::load_robot_description(robot_description_path_, xacro_arguments_);
+        auto resolve = [](const std::string& value, auto resolver) {
+            try {
+                return resolver(value);
+            } catch (const std::exception& e) {
+                throw std::runtime_error(fmt::format("could not resolve '{}' (is the package installed and the "
+                                                     "workspace sourced?): {}", value, e.what()));
+            }
+        };
+        const std::string path = resolve(robot_description_path_, ros2_control_crospi_utils::resolve_path);
+        std::vector<std::pair<std::string, std::string>> xacro_arguments;
+        for (const auto& [key, value] : xacro_arguments_) {
+            // $[package] and ${ENV}
+            xacro_arguments.emplace_back(key, resolve(value, [](const std::string& v) { return etasl::string_interpolate(v); }));
+        }
+        const std::string robot_description = ros2_control_crospi_utils::load_robot_description(path, xacro_arguments);
         load_hardware(robot_description);
         activate_hardware();
         claim_interfaces();

@@ -88,30 +88,38 @@ on Kilted.
 
 ## Quick start (UR10e mock hardware, no robot needed)
 
-[config/ur10e_mock_hardware.setup.json](config/ur10e_mock_hardware.setup.json) is a complete Crospi setup
-that uses the UR10e description of `ur_description` with `mock_components/GenericSystem`. Its velocity commands are
-integrated by the mock hardware, which also exposes the `tcp_fts_sensor` force-torque sensor.
+[config/ur10e_ros2_control_crospi.setup.json](config/ur10e_ros2_control_crospi.setup.json) is a complete Crospi
+setup, used for all the examples of this README:
+
+- Its `robotsimulators` entry (`simulation:=true`) uses the UR10e description of `ur_description` with
+  `mock_components/GenericSystem`: the velocity commands are integrated by the mock hardware, which also exposes the
+  `tcp_fts_sensor` force-torque sensor. The mock hardware starts at the initial joints of
+  [config/ur10e_initial_positions.yaml](config/ur10e_initial_positions.yaml).
+- Its `robotdrivers` entry (`simulation:=false`) talks to a real UR10e, see
+  [Configuring a real robot](#configuring-a-real-robot-ur10e-example).
+- Both entries report the joint positions, the joint velocities (`joint_vel`) and the force-torque sensor
+  (`wrench_input`) to eTaSL.
+- The eTaSL settings and IO handlers are those of the Crospi tutorial (`application_example_tutorials.setup.json`),
+  and the robot specification is the UR10e with the cylindrical contact tool of the MuJoCo force-control demos
+  (`ur10e_cylinder_tool.urdf`, tcp `tool0`).
 
 ```bash
 # The plugin alone: loads it through pluginlib (as crospi_node does) and drives all joints with a sinusoidal velocity.
 ros2 run ros2_control_crospi test_ros2_control_crospi \
-  --config '$[ros2_control_crospi]/config/ur10e_mock_hardware.setup.json' --list robotsimulators --index 0 \
+  --config '$[ros2_control_crospi]/config/ur10e_ros2_control_crospi.setup.json' --list robotsimulators --index 0 \
   --duration 4 --amplitude 0.5 --frequency 0.25 --real-time true --csv none
 
-# The full crospi_node (simulation:=true uses robotsimulators, simulation:=false uses robotdrivers)
-ros2 run crospi_core crospi_node --ros-args -p config_file:="\$[ros2_control_crospi]/config/ur10e_mock_hardware.setup.json" -p simulation:=true
+# The full crospi_node with the mock hardware (simulation:=true uses robotsimulators)
+ros2 run crospi_core crospi_node --ros-args -p config_file:="\$[ros2_control_crospi]/config/ur10e_ros2_control_crospi.setup.json" -p simulation:=true
 ```
 
 ## Running the Crospi tutorial examples with ros2_control
 
 The first two examples of the [Running examples](https://rob.pages.gitlab.kuleuven.be/crospi/markdown/basic_tutorials/running_examples/)
-tutorial can be executed with this driver and the UR10e mock hardware, instead of the `simple_kinematic_simulation`.
-[config/ur10e_mock_hardware_tutorials.setup.json](config/ur10e_mock_hardware_tutorials.setup.json) is the setup
-file of the tutorial (`application_example_tutorials.setup.json`, same eTaSL settings, robot specification and
-IO handlers) in which the robot driver/simulator is replaced by `ros2_control_crospi` with the
-`ur_mocked.urdf.xacro` description of `ur_description` (`mock_components/GenericSystem`). The mock hardware starts
-at the same initial joints as the tutorial
-([config/ur10e_tutorials_initial_positions.yaml](config/ur10e_tutorials_initial_positions.yaml)).
+tutorial can be executed with this driver and the UR10e mock hardware, instead of the `simple_kinematic_simulation`,
+using [config/ur10e_ros2_control_crospi.setup.json](config/ur10e_ros2_control_crospi.setup.json). It has the same
+eTaSL settings and IO handlers as the setup file of the tutorial (`application_example_tutorials.setup.json`), and
+the mock hardware starts at the same initial joints as the tutorial.
 
 Requirements: the [crospi_application_template](https://github.com/Robotics-Research-Group-KUL/crospi_application_template)
 and [ur_description](https://github.com/UniversalRobots/Universal_Robots_ROS2_Description) packages in your
@@ -132,13 +140,12 @@ ros2 launch crospi_application_template application_example_tutorials.launch.py
 In a second terminal, run the crospi_node with the ros2_control setup file:
 
 ```bash
-ros2 run crospi_core crospi_node --ros-args -p config_file:="\$[ros2_control_crospi]/config/ur10e_mock_hardware_tutorials.setup.json" -p simulation:=true
+ros2 run crospi_core crospi_node --ros-args -p config_file:="\$[ros2_control_crospi]/config/ur10e_ros2_control_crospi.setup.json" -p simulation:=true
 ```
 
 The output shows that the hardware `ur` is loaded from the plugin `mock_components/GenericSystem`, configured and
-activated, and that the velocity command interfaces of the six joints are claimed. The setup file contains the same
-ros2_control entry in `robotsimulators` and in `robotdrivers`, so `simulation:=false` behaves the same way (with a
-real robot, only the `robotdrivers` entry would change, see [the UR example](#example-real-ur-e-series-robot-ur_robot_driver)).
+activated, and that the velocity command interfaces of the six joints are claimed. To run the same examples on a
+real UR10e, use `simulation:=false` after following [Configuring a real robot](#configuring-a-real-robot-ur10e-example).
 
 ### 3. Run the orchestration
 
@@ -164,8 +171,8 @@ python3 skill_example_loop_fsm.py
 
 The robot moves home, down, up and along a spline, and repeats this loop forever (`Ctrl-C` to stop the script).
 
-> **Warning:** `Ctrl-C` stops the BetFSM script, but the crospi task that is running continues. Stop the crospi_node
-> (`Ctrl-C`) to stop the robot: the driver then sends a zero velocity command and deactivates and shuts down the
+> **Warning:** 
+> (`Ctrl-C`) to stop the robot in the Crospi terminal: the driver then sends a zero velocity command and deactivates and shuts down the
 > ros2_control hardware. Only one crospi_node can run at a time.
 
 ## Configuration
@@ -196,37 +203,6 @@ used for autocompletion, is the JSON schema
 Joint positions are always reported (`position` state interfaces). If a requested interface does not exist in the
 hardware, the initialization fails with a message that lists the available interfaces.
 
-### Example: real UR e-series robot (`ur_robot_driver`)
-
-The robot must run the *External Control* URCap program (see the
-[ur_robot_driver documentation](https://docs.universal-robots.com/Universal_Robots_ROS2_Documentation/)).
-Its `URPositionHardwareInterface` switches to velocity control when the velocity interfaces are claimed.
-
-```json
-"robotdrivers": [
-    {
-        "is-ros2_control_crospi": true,
-        "robot_joints": ["shoulder_pan_joint", "shoulder_lift_joint", "elbow_joint", "wrist_1_joint", "wrist_2_joint", "wrist_3_joint"],
-        "periodicity": 0.002,
-        "robot_description_path": "$[ur_robot_driver]/urdf/ur.urdf.xacro",
-        "xacro_arguments": {
-            "name": "ur",
-            "ur_type": "ur10e",
-            "robot_ip": "192.168.1.102",
-            "script_filename": "$[ur_client_library]/resources/external_control.urscript",
-            "input_recipe_filename": "$[ur_robot_driver]/resources/rtde_input_recipe.txt",
-            "output_recipe_filename": "$[ur_robot_driver]/resources/rtde_output_recipe.txt"
-        },
-        "command_interface": "velocity",
-        "hardware_components": ["ur"],
-        "force_torque_sensor_name": "tcp_fts_sensor",
-        "pose_sensor_name": "tcp_pose",
-        "name_expr_joint_vel": "joint_vel",
-        "name_expr_cartesian_wrench": "wrench_input"
-    }
-]
-```
-
 ### Example: Isaac Sim (`topic_based_ros2_control`)
 
 Use a robot description whose `<ros2_control>` tag uses the
@@ -248,6 +224,123 @@ commands and states with Isaac Sim through ROS 2 topics), and add the driver to 
   <!-- ... the other joints ... -->
 </ros2_control>
 ```
+
+## Configuring a real robot (UR10e example)
+
+The setup file of this package, [config/ur10e_ros2_control_crospi.setup.json](config/ur10e_ros2_control_crospi.setup.json),
+contains two entries with the same `robot_joints`:
+
+- `robotsimulators` (`simulation:=true`): the UR10e mock hardware (`ur_description/urdf/ur_mocked.urdf.xacro`).
+- `robotdrivers` (`simulation:=false`): a real UR10e through the official
+  [ur_robot_driver](https://github.com/UniversalRobots/Universal_Robots_ROS2_Driver), whose hardware plugin
+  `ur_robot_driver/URPositionHardwareInterface` is declared in `ur_robot_driver/urdf/ur.urdf.xacro`.
+
+This is the general recipe for any robot: point `robot_description_path` to the robot description of the vendor's
+ROS 2 driver (the same URDF/xacro that its launch files give to the controller_manager), pass the arguments of its
+launch file as `xacro_arguments`, and choose a `command_interface` that its hardware plugin supports. The steps below
+do this for the UR10e. They follow the
+[ur_robot_driver documentation](https://docs.universal-robots.com/Universal_Robots_ROS2_Documentation/), which
+describes the robot-side setup in detail.
+
+### 1. Install the hardware plugin
+
+```bash
+sudo apt install ros-$ROS_DISTRO-ur-robot-driver   # also installs ur_client_library and ur_description
+```
+
+The `robotdrivers` entry references `$[ur_robot_driver]` and `$[ur_client_library]`. If they are not installed
+(or the workspace is not sourced), `simulation:=false` fails at initialization with
+`could not resolve '$[ur_robot_driver]/urdf/ur.urdf.xacro'`. `simulation:=true` does not need them.
+
+### 2. Prepare the robot and the network
+
+- Connect the PC and the robot controller to the same network, and give the PC a static IP in the robot's subnet
+  (e.g. robot `192.168.1.102`, PC `192.168.1.101`).
+- On the teach pendant, install the *External Control* URCap (`ros-$ROS_DISTRO-ur-robot-driver` ships it in
+  `share/ur_robot_driver/resources/`), set its *Host IP* to the IP of the PC (port `50002`), and create a program
+  that contains the *External Control* node.
+- Alternatively, set `"headless_mode": "true"` in `xacro_arguments` and put the robot in *Remote Control* mode: the
+  hardware plugin then sends the control program itself and no pendant program is needed.
+- Optional but recommended: extract the factory calibration of your robot and use it both for ros2_control and in
+  the URDF of Crospi's `default_robot_specification`, so that eTaSL uses the exact kinematics of your robot:
+
+  ```bash
+  ros2 launch ur_calibration calibration_correction.launch.py robot_ip:=192.168.1.102 \
+    target_filename:="${HOME}/ur10e_calibration.yaml"
+  ```
+
+  and add `"kinematics_params": "${HOME}/ur10e_calibration.yaml"` to `xacro_arguments`.
+
+### 3. Configure the `robotdrivers` entry
+
+This is the `robotdrivers` entry of
+[config/ur10e_ros2_control_crospi.setup.json](config/ur10e_ros2_control_crospi.setup.json). Change at least
+`robot_ip`:
+
+```json
+"robotdrivers": [
+    {
+        "is-ros2_control_crospi": true,
+        "robot_joints": ["shoulder_pan_joint", "shoulder_lift_joint", "elbow_joint", "wrist_1_joint", "wrist_2_joint", "wrist_3_joint"],
+        "periodicity": 0.002,
+        "robot_description_path": "$[ur_robot_driver]/urdf/ur.urdf.xacro",
+        "xacro_arguments": {
+            "name": "ur",
+            "ur_type": "ur10e",
+            "robot_ip": "192.168.1.102",
+            "script_filename": "$[ur_client_library]/resources/external_control.urscript",
+            "input_recipe_filename": "$[ur_robot_driver]/resources/rtde_input_recipe.txt",
+            "output_recipe_filename": "$[ur_robot_driver]/resources/rtde_output_recipe.txt"
+        },
+        "command_interface": "velocity",
+        "hardware_components": ["ur"],
+        "initialization_timeout": 10.0,
+        "ros_node_name": "ros2_control_crospi_driver",
+        "force_torque_sensor_name": "tcp_fts_sensor",
+        "name_expr_joint_vel": "joint_vel",
+        "name_expr_cartesian_wrench": "wrench_input"
+    }
+]
+```
+
+- `periodicity: 0.002`: the UR e-series controller communicates at 500 Hz (use `0.008` for CB3 robots). The driver
+  thread runs independently of the eTaSL `sample_time` (`0.01`), thanks to Crospi's triple buffers.
+- `robot_description_path` and `xacro_arguments`: the description and the arguments that `ur_robot_driver`'s launch
+  file (`ur_control.launch.py`) passes to xacro. `script_filename` and the RTDE recipes are required by the hardware
+  plugin. Any other argument of `ur.urdf.xacro` can be added (e.g. `headless_mode`, `kinematics_params`,
+  `reverse_ip`, `tf_prefix` with `hardware_joints`).
+- `command_interface: velocity`: the UR hardware plugin switches the robot to velocity control (speedj) when the
+  velocity interfaces are claimed.
+- `force_torque_sensor_name` / `name_expr_cartesian_wrench`: the wrist force-torque sensor of the e-series is reported to
+  eTaSL as `wrench_input`, the same name that the simulated wrench uses in the MuJoCo force-control demos. It can also
+  report the TCP pose computed by the robot with `"pose_sensor_name": "tcp_pose"` and `name_expr_cartesian_pos/quat`.
+  The `FT_sensor_frame` of the robot specification is mounted at `tool0`. Before running force control on the real
+  robot, check that this matches the frame in which `ur_robot_driver` reports the wrench of `tcp_fts_sensor` (it
+  depends on the TCP configured on the teach pendant), together with the weight and center of gravity of the tool
+  (see the sim-to-real gap section linked below).
+
+### 4. Run
+
+Start the crospi_node with `simulation:=false`:
+
+```bash
+ros2 run crospi_core crospi_node --ros-args -p config_file:="\$[ros2_control_crospi]/config/ur10e_ros2_control_crospi.setup.json" -p simulation:=false
+```
+
+The output shows that the hardware `ur` is loaded from `ur_robot_driver/URPositionHardwareInterface`, activated
+(connection to the robot at `robot_ip`) and switched to the velocity interfaces, followed by
+`Initialized ros2_control robot driver ... initial joints [...]` with the actual joint positions of the robot. Then
+start the program with the *External Control* node on the teach pendant (not needed in headless mode): the driver
+logs that the robot is connected and ready to receive control commands.
+
+Then run an orchestration, starting with the safest one, [Example 1](#example-1) (sine wave in the last joint), before
+running [Example 2](#example-2) or your own applications. Keep the emergency stop at hand.
+
+> **Note:** the setup file of this package is an example. In your own application, add the `ros2_control_crospi`
+> entries to the setup file of your application (e.g. in your `crospi_application_template`), together with the
+> robot specification and IO handlers that your tasks need. Before running force-control applications on the real
+> robot, read the [sim-to-real gap](https://rob.pages.gitlab.kuleuven.be/crospi/markdown/basic_tutorials/running_examples/#6-sim-to-real-gap)
+> section of the Crospi tutorial.
 
 ## Things to know
 
