@@ -1,5 +1,10 @@
 <library path="ros2_control_crospi">
+  <!-- The same class is registered as robotdriver (simulation:=false) and as robotsimulator (simulation:=true), so that
+       both real hardware and simulated ros2_control hardware (mock_components, topic_based_ros2_control for Isaac Sim, ...) can be used. -->
   <class type="etasl::ros2_control_crospi" base_class_type="etasl::RobotDriver">
-    <description>This is a plugin template compatible with etasl ROS2 node.</description>
+    <description>Crospi robot driver for any robot with a ros2_control hardware interface. The hardware components of the robot description (URDF/xacro) are executed directly in the real-time thread of the driver (no controller_manager).</description>
+  </class>
+  <class type="etasl::ros2_control_crospi" base_class_type="etasl::RobotSimulator">
+    <description>Crospi robot simulator for simulated ros2_control hardware (mock_components/GenericSystem, topic_based_ros2_control for Isaac Sim, ...). The hardware components of the robot description (URDF/xacro) are executed directly in the real-time thread of the driver (no controller_manager).</description>
   </class>
 </library>

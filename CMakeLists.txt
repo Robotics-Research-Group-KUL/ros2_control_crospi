@@ -8,108 +8,73 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
+set(CMAKE_CXX_STANDARD 17)
+
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(crospi_core REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(rclcpp_lifecycle REQUIRED)
+find_package(lifecycle_msgs REQUIRED)
+find_package(hardware_interface REQUIRED)
+find_package(ament_index_cpp REQUIRED)
+
+# Required to resolve the link interface of crospi_core::crospi_utils (string_interpolate and JsonChecker)
+find_package(crospi_interfaces REQUIRED)
+find_package(Eigen3 REQUIRED)
+find_package(etasl REQUIRED)
+find_package(jsoncpp REQUIRED)
+find_package(rclcpp_action REQUIRED)
+find_package(resource_retriever REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 
 find_package(Boost 1.89 CONFIG REQUIRED)
 message(STATUS "Using Boost version ${Boost_VERSION}")
 message(STATUS "Boost include dirs: ${Boost_INCLUDE_DIRS}")
 
-set(CMAKE_CXX_STANDARD 17)
 
-
+# ----------------------------------------------------------------------------------------------
+# Plugin library
+# ----------------------------------------------------------------------------------------------
 set(src_ros2_control_crospi
     src/ros2_control_crospi.cpp
+    src/robot_description_loader.cpp
 )
 
-add_library(ros2_control_crospi 
+add_library(ros2_control_crospi
             SHARED
             ${src_ros2_control_crospi})
-
-set(MY_EXTERNAL_LIB "") #sets it empty such that it can be redefined later to include external lib
-
-
-# UNCOMENT THE FOLLOWING LINES AND MODIFY IF AN EXTERNAL LIBRARY IS DESIRED TO BE INCLUDED WITHIN THIS PACKAGE AND COMPILED BEFORE THE REST OF THE PACKAGE AS A DEPENDENCY
-# set(MY_EXTERNAL_LIB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/my_external_lib/)
-# set(MY_EXTERNAL_LIB_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/external/my_external_lib/include)
-# set(MY_EXTERNAL_LIB_DIR_SO_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/external/my_external_lib/lib)
-
-# message("--------------MY_EXTERNAL_LIB_DIR: ${MY_EXTERNAL_LIB_DIR}----------------")
-
-# add_custom_target(external_compiled_lib COMMAND make clean && make
-#                    WORKING_DIRECTORY ${MY_EXTERNAL_LIB_DIR}/build/GNUMake
-# )
-
-
-# include_directories(${MY_EXTERNAL_LIB_INCLUDE})
-
-# add_dependencies(ros2_control_crospi external_compiled_lib) #Makes sure to compile first external_compiled_lib before the ros2_control_crospi
-
-# message("-------------- MY_EXTERNAL_LIB_DIR compiled----------------")
-
-
-# find_library(MY_EXTERNAL_LIB
-#              NAMES <name_of_the_so_lib>.so
-#              PATHS ${MY_EXTERNAL_LIB_DIR_SO_LOCATION}
-# )
-
-# message("--------------MY_EXTERNAL_LIB: ${MY_EXTERNAL_LIB}----------------")
-
-
-
-
-# set(etasl_task_utils_DIR /workspaces/devcontainer/build/crospi_core/src/misc/etasl_task_utils)
-
-# find_library(etasl_task_utils
-#              NAMES libetasl_task_utils.so
-#              PATHS ${etasl_task_utils_DIR}
-# )
-# set(CMAKE_PREFIX_PATH "${CMAKE_PREFIX_PATH};/path/to/etasl_task_utils")
-
-
-# find_library(etasl_task_utils
-#               NAMES libetasl_task_utils.so)
-
-# find_library(robot_interfacing_utils
-#               NAMES librobot_interfacing_utils.so)
-
-# find_library(crospi_node_utils
-#               NAMES libcrospi_node_utils.so)
-# find_package(crospi_node_utils REQUIRED)
-# find_package(robot_interfacing_utils REQUIRED)
 
 
 # All commented dependencies are already inherited and linked thanks to crospi_core::robot_interfacing_utils (thanks to ament_export_dependencies)
 set(rosdependencies
   pluginlib
+  rclcpp
+  rclcpp_lifecycle
+  lifecycle_msgs
+  hardware_interface
+  ament_index_cpp
 )
 
 set(dependencies
-    # fmt   
-    # pugixml
-    # jsoncpp
-    # etasl::expressiongraph_context 
-    # # etasl::expressiongraph_solver_qpoases 
-    # etasl::expressiongraph_context_lua   
-    # fmt   
-    # jsoncpp
-    # crospi_core::crospi_utils
-    # crospi_core::crospi_node_utils
     crospi_core::robot_interfacing_utils
+    crospi_core::crospi_utils   # string_interpolate ($[package] paths) and JsonChecker
   )
 
-  set(ros_targets
+set(ros_targets
     pluginlib::pluginlib
-    # rclcpp::rclcpp
-    # rclcpp_lifecycle::rclcpp_lifecycle
-    # ${std_msgs_TARGETS}
-    # ${std_srvs_TARGETS}
-    # ${sensor_msgs_TARGETS}
-    # ${lifecycle_msgs_TARGETS}
+    rclcpp::rclcpp
+    rclcpp_lifecycle::rclcpp_lifecycle
+    ${lifecycle_msgs_TARGETS}
+    hardware_interface::hardware_interface
+    ament_index_cpp::ament_index_cpp
   )
-  
+
 
 pluginlib_export_plugin_description_file(crospi_core plugins.xml)
 
@@ -119,7 +84,18 @@ target_include_directories(ros2_control_crospi PUBLIC
   $<INSTALL_INTERFACE:include>
   ${Boost_INCLUDE_DIRS})
 
-#The following is done because ROS2 deprecated ament_target_dependencies in favor of target_link_libraries, but the former is still required for older (legacy) ROS2 versions. 
+
+# ----------------------------------------------------------------------------------------------
+# Test executable: loads the driver plugin through pluginlib (exactly as the crospi_node does)
+# and drives it with a velocity profile, without needing the full crospi_node.
+# ----------------------------------------------------------------------------------------------
+add_executable(test_ros2_control_crospi src/test_ros2_control_crospi.cpp)
+target_include_directories(test_ros2_control_crospi PRIVATE
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  ${Boost_INCLUDE_DIRS})
+
+
+#The following is done because ROS2 deprecated ament_target_dependencies in favor of target_link_libraries, but the former is still required for older (legacy) ROS2 versions.
 if(DEFINED ENV{ROS_DISTRO} AND (
   "$ENV{ROS_DISTRO}" STREQUAL "foxy" OR
   "$ENV{ROS_DISTRO}" STREQUAL "galactic" OR
@@ -129,9 +105,13 @@ if(DEFINED ENV{ROS_DISTRO} AND (
 ))
       ament_target_dependencies(ros2_control_crospi ${rosdependencies})
       target_link_libraries(ros2_control_crospi ${dependencies})
+      ament_target_dependencies(test_ros2_control_crospi pluginlib rclcpp)
+      target_link_libraries(test_ros2_control_crospi crospi_core::robot_interfacing_utils crospi_core::crospi_utils)
       message(STATUS "Legacy ROS_DISTRO is $ENV{ROS_DISTRO}, using ament_target_dependencies")
 else()
     target_link_libraries(ros2_control_crospi  ${dependencies} ${ros_targets})
+    target_link_libraries(test_ros2_control_crospi crospi_core::robot_interfacing_utils crospi_core::crospi_utils
+                          pluginlib::pluginlib rclcpp::rclcpp)
     message(STATUS "Modern ROS_DISTRO detected ($ENV{ROS_DISTRO}), using target_link_libraries")
 endif()
 
@@ -149,15 +129,16 @@ install(
   RUNTIME DESTINATION bin
 )
 
+install(
+  TARGETS test_ros2_control_crospi
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 install(DIRECTORY include/
   DESTINATION include)
 
-install(DIRECTORY json_schemas
+install(DIRECTORY json_schemas config
   DESTINATION share/${PROJECT_NAME})
-  
-# ament_export_include_directories(
-#   include
-# )
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)

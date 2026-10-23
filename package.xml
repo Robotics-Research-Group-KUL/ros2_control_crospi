@@ -2,8 +2,14 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>ros2_control_crospi</name>
-  <version>0.0.0</version>
-  <description>TODO: Package description</description>
+  <version>0.1.0</version>
+  <description>
+    Generic Crospi RobotDriver (and RobotSimulator) plugin that interfaces any robot with a ros2_control hardware
+    interface. The hardware components declared in the robot description (URDF/xacro) are loaded with a
+    hardware_interface::ResourceManager and executed directly in the real-time thread of the driver, without a
+    controller_manager. The joint velocity setpoints of Crospi are sent to the velocity or position command
+    interfaces of the joints.
+  </description>
   <maintainer email="santiago.iregui@kuleuven.be">Santiago Iregui</maintainer>
   <license>LGPL-3.0-only</license>
 
@@ -11,6 +17,27 @@
 
   <depend>pluginlib</depend>
   <depend>crospi_core</depend>
+  <depend>rclcpp</depend>
+  <depend>rclcpp_lifecycle</depend>
+  <depend>lifecycle_msgs</depend>
+  <depend>hardware_interface</depend>
+  <depend>ament_index_cpp</depend>
+  <!-- Required by the link interface of crospi_core::crospi_utils -->
+  <depend>crospi_interfaces</depend>
+  <depend>etasl_wrapper</depend>
+  <depend>eigen</depend>
+  <depend>rclcpp_action</depend>
+  <depend>resource_retriever</depend>
+  <depend>sensor_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>tf2</depend>
+  <depend>tf2_ros</depend>
+  <depend>tf2_geometry_msgs</depend>
+
+  <!-- Robot descriptions ending with .xacro are processed with the xacro executable at run time -->
+  <exec_depend>xacro</exec_depend>
+  <!-- The example configurations use the UR mock hardware of ur_description (Universal_Robots_ROS2_Description) -->
+  <exec_depend>ur_description</exec_depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

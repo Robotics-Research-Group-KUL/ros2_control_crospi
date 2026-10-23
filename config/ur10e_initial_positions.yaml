@@ -1,0 +1,7 @@
+# Initial joint positions [rad] of the UR10e mock hardware (initial_value of the position state interfaces).
+shoulder_pan_joint: -1.57
+shoulder_lift_joint: -1.5708
+elbow_joint: 1.5708
+wrist_1_joint: -1.5708
+wrist_2_joint: -1.5708
+wrist_3_joint: 0.0

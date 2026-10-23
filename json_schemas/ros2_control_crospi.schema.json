@@ -1,45 +1,185 @@
 {
     "$schema": "http://json-schema.org/draft-06/schema",
-    "$id":"ros2_control_crospi.json",
-    "type":"object",
-    "properties":{
-        "is-ros2_control_crospi" : {
-            "description":"To indicate that the tasks will be executed using the ros2_control_crospi driver when running on the real robot.",
-            "type":"boolean",
+    "$id": "ros2_control_crospi.json",
+    "type": "object",
+    "properties": {
+        "is-ros2_control_crospi": {
+            "description": "To indicate that the robot is interfaced through ros2_control. The hardware components (ros2_control hardware interface plugins) declared in the <ros2_control> tags of the robot description are loaded and executed directly inside the real-time thread of this driver (no controller_manager and no controllers are needed). Any robot with a ros2_control hardware interface can therefore be used (e.g. UR, Franka, KUKA, mock_components/GenericSystem, topic_based_ros2_control for Isaac Sim, etc.).",
+            "type": "boolean",
             "const": true
-          }
-    },
-    "required":["is-ros2_control_crospi"],
-    "additionalProperties": true,
-    "dependencies":{
-        "is-ros2_control_crospi":{
-          "required":["robot_joints","initial_joints", "periodicity"],
-          "properties":{
-              "robot_joints": {
-                "description":"Names of the joints that will be interfaced through this robot driver. This names need to be consistent with the ones declared in the URDF file of the robot and must exist also in the robot_joints declared in the default_robot_specification.",
-                "type":"array",
-                "items": {"type": "string"},
-                "default": [
-                    "shoulder_pan_joint",
-                    "shoulder_lift_joint",
-                    "elbow_joint",
-                    "wrist_1_joint",
-                    "wrist_2_joint",
-                    "wrist_3_joint"
-                ]
-            },
-            "initial_joints" : {
-                "description":"Initial joint values in [rad] for rotational joints or [m] for prismatic joints. The size must coincide with the length of the robot_joints of the specified robot.",
-                "type":"array",
-                "items": {"type": "number"},
-                "default": [0.0, 0.0 ,0.0 ,0.0 ,0.0 ,0.0]
-            },
-            "periodicity" : {
-                "description":"Periodicity in which the integration will be performed in seconds. 1/periodicity is the update frequency in Hz.",
-                "type":"number",
-                "default": 0.01
-            }
-          }
         }
-      }
+    },
+    "required": [
+        "is-ros2_control_crospi"
+    ],
+    "additionalProperties": true,
+    "dependencies": {
+        "is-ros2_control_crospi": {
+            "required": [
+                "robot_joints",
+                "periodicity",
+                "robot_description_path",
+                "command_interface"
+            ],
+            "properties": {
+                "robot_joints": {
+                    "description": "Names of the joints that will be interfaced through this robot driver. These names need to be consistent with the ones declared in the URDF file of the robot and must exist also in the robot_joints declared in the default_robot_specification. Unless hardware_joints is given, they must also be the names of the joints in the <ros2_control> tag of the robot description.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "minItems": 1,
+                    "examples": [
+                        [
+                            "shoulder_pan_joint",
+                            "shoulder_lift_joint",
+                            "elbow_joint",
+                            "wrist_1_joint",
+                            "wrist_2_joint",
+                            "wrist_3_joint"
+                        ]
+                    ]
+                },
+                "periodicity": {
+                    "description": "Period in seconds of the control loop of this driver (1/periodicity is the update frequency in Hz). Every update executes read() of all hardware components, writes the feedback to crospi, reads the joint velocity setpoints of crospi and executes write() of all hardware components. Choose a value supported by the hardware (e.g. 0.002 for UR e-series, 0.001 for Franka).",
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "examples": [
+                        0.002,
+                        0.01
+                    ]
+                },
+                "robot_description_path": {
+                    "description": "Path of the robot description (URDF or xacro file) that contains the <ros2_control> tag(s) with the hardware plugin(s) of the robot. Files ending with .xacro are processed with xacro (using xacro_arguments). Supports $[package_name]/relative/path (crospi interpolation), ${ENV_VARIABLE}, package://package_name/relative/path, file:// and absolute paths.",
+                    "type": "string",
+                    "examples": [
+                        "$[ur_description]/urdf/ur_mocked.urdf.xacro",
+                        "package://ur_robot_driver/urdf/ur.urdf.xacro"
+                    ]
+                },
+                "xacro_arguments": {
+                    "description": "Arguments passed to xacro as name:=value when robot_description_path is a .xacro file. Use them to select the robot model and its hardware (e.g. ur_type, robot_ip, use_mock_hardware). Numbers and booleans are converted to strings. String values support $[package_name] and ${ENV_VARIABLE} (crospi interpolation).",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": [
+                            "string",
+                            "number",
+                            "boolean"
+                        ]
+                    },
+                    "examples": [
+                        {
+                            "name": "ur",
+                            "ur_type": "ur10e"
+                        },
+                        {
+                            "ur_type": "ur10e",
+                            "robot_ip": "192.168.1.102",
+                            "use_mock_hardware": "false"
+                        }
+                    ]
+                },
+                "command_interface": {
+                    "description": "Command interface of the joints that is claimed in the hardware. velocity: the joint velocity setpoints of crospi are sent directly (recommended if the hardware supports it). position: the joint velocity setpoints are integrated (with periodicity) into a position command, starting from the measured joint positions at initialization.",
+                    "type": "string",
+                    "enum": [
+                        "velocity",
+                        "position"
+                    ],
+                    "examples": [
+                        "velocity"
+                    ]
+                },
+                "hardware_joints": {
+                    "description": "Optional. Names of the joints in the <ros2_control> tag, in the same order as robot_joints. Only needed if they differ from robot_joints (e.g. when the robot description uses a tf_prefix). Defaults to robot_joints.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "examples": [
+                        [
+                            "left_shoulder_pan_joint",
+                            "left_shoulder_lift_joint",
+                            "left_elbow_joint",
+                            "left_wrist_1_joint",
+                            "left_wrist_2_joint",
+                            "left_wrist_3_joint"
+                        ]
+                    ]
+                },
+                "hardware_components": {
+                    "description": "Optional. Names of the hardware components (name attribute of the <ros2_control> tags) that are activated. Components that are not listed stay unconfigured and their interfaces cannot be used. Defaults to all the components of the robot description.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "examples": [
+                        [
+                            "ur"
+                        ]
+                    ]
+                },
+                "initialization_timeout": {
+                    "description": "Optional. Maximum time in seconds to wait, after activating the hardware, until the hardware reports valid (finite) joint positions. Defaults to 5.0.",
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "default": 5.0
+                },
+                "ros_node_name": {
+                    "description": "Optional. Name of the ROS 2 node created by this driver. Its clock is used for the read()/write() calls of the hardware, and hardware components that need a ROS 2 node (e.g. for parameters, topics or services) are spun together with it in a separate (non real-time) thread. Defaults to ros2_control_crospi. Use different names if several ros2_control_crospi drivers are configured.",
+                    "type": "string",
+                    "default": "ros2_control_crospi"
+                },
+                "force_torque_sensor_name": {
+                    "description": "Optional. Name of a force-torque sensor of the robot description that exposes the state interfaces <name>/force.x, force.y, force.z, torque.x, torque.y and torque.z (ros2_control ForceTorqueSensor semantic component, e.g. tcp_fts_sensor for UR). Required if name_expr_cartesian_wrench is given.",
+                    "type": "string",
+                    "examples": [
+                        "tcp_fts_sensor"
+                    ]
+                },
+                "pose_sensor_name": {
+                    "description": "Optional. Name of a pose sensor of the robot description that exposes the state interfaces <name>/position.x, position.y, position.z, orientation.x, orientation.y, orientation.z and orientation.w (ros2_control PoseSensor semantic component, e.g. tcp_pose for UR). Required if name_expr_cartesian_pos or name_expr_cartesian_quat is given.",
+                    "type": "string",
+                    "examples": [
+                        "tcp_pose"
+                    ]
+                },
+                "name_expr_joint_vel": {
+                    "description": "If defined, the joint velocities (velocity state interfaces of the joints) are reported. Defines the name of the expression that will be used to put the joint velocities coming from this robot driver. This name can be then used in etasl with selected_name_0 = ctx:createInputChannelScalar('selected_name_0') for each joint",
+                    "type": "string",
+                    "examples": [
+                        "joint_vel"
+                    ]
+                },
+                "name_expr_joint_torque": {
+                    "description": "If defined, the joint torques (effort state interfaces of the joints) are reported. Defines the name of the expression that will be used to put the joint torques coming from this robot driver. This name can be then used in etasl with selected_name_0 = ctx:createInputChannelScalar('selected_name_0') for each joint",
+                    "type": "string",
+                    "examples": [
+                        "joint_torque"
+                    ]
+                },
+                "name_expr_cartesian_pos": {
+                    "description": "If defined, the position of the pose sensor (pose_sensor_name) is reported. Defines the name of the expression that will be used to put the Cartesian position coming from this robot driver. This name can be then used in etasl with selected_name = ctx:createInputChannelVector('selected_name')",
+                    "type": "string",
+                    "examples": [
+                        "tcp_pos"
+                    ]
+                },
+                "name_expr_cartesian_quat": {
+                    "description": "If defined, the orientation of the pose sensor (pose_sensor_name) is reported. Defines the name of the expression that will be used to put the Cartesian orientation (quaternion) coming from this robot driver. This name can be then used in etasl with selected_name = ctx:createInputChannelRotation('selected_name')",
+                    "type": "string",
+                    "examples": [
+                        "tcp_quat"
+                    ]
+                },
+                "name_expr_cartesian_wrench": {
+                    "description": "If defined, the wrench of the force-torque sensor (force_torque_sensor_name) is reported. Defines the name of the expression that will be used to put the wrench coming from this robot driver. This name can be then used in etasl with selected_name = ctx:createInputChannelWrench('selected_name')",
+                    "type": "string",
+                    "examples": [
+                        "wrench_input"
+                    ]
+                }
+            }
+        }
+    }
 }
