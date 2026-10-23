@@ -1,5 +1,7 @@
 # ros2_control_crospi Package
 
+[**This package is experimental and is under development. It has been tested in simulation (mockup hardware through ros2_control) but not yet on a real robot**]
+
 Generic [Crospi](https://rob.pages.gitlab.kuleuven.be/crospi/) robot driver plugin that interfaces **any robot that has a
 [ros2_control](https://control.ros.org) hardware interface** (UR, Franka, KUKA, Kinova, Dynamixel, ...,
 `mock_components/GenericSystem`, `topic_based_ros2_control` for Isaac Sim, ...). You don't need to write and
