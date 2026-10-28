@@ -19,6 +19,7 @@
 #include "ros2_control_crospi/ros2_control_crospi.hpp"
 #include "ros2_control_crospi/robot_description_loader.hpp"
 
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <iostream>
@@ -170,6 +171,13 @@ void ros2_control_crospi::construct(std::string robot_name,
     }
     initialization_timeout_ = jsonchecker->is_member(config, "initialization_timeout")
                                   ? jsonchecker->asDouble(config, "initialization_timeout") : 5.0;
+    initialization_settle_time_ = jsonchecker->is_member(config, "initialization_settle_time")
+                                      ? jsonchecker->asDouble(config, "initialization_settle_time") : 0.5;
+    if (initialization_settle_time_ >= initialization_timeout_) {
+        throw std::runtime_error(fmt::format("[{}] initialization_settle_time ({} s) must be smaller than "
+                                             "initialization_timeout ({} s).", PLUGIN_NAME,
+                                             initialization_settle_time_, initialization_timeout_));
+    }
     ros_node_name_ = jsonchecker->is_member(config, "ros_node_name")
                          ? jsonchecker->asString(config, "ros_node_name") : PLUGIN_NAME;
     force_torque_sensor_name_ = jsonchecker->is_member(config, "force_torque_sensor_name")
@@ -414,7 +422,11 @@ void ros2_control_crospi::claim_interfaces()
 
 bool ros2_control_crospi::wait_for_valid_state()
 {
-    const auto deadline = std::chrono::steady_clock::now() + std::chrono::duration<double>(initialization_timeout_);
+    // Some hardware reports placeholder values (e.g. zeros for a UR) until its first packets arrive, so the hardware is
+    // read for at least initialization_settle_time before the initial state is taken.
+    const auto start = std::chrono::steady_clock::now();
+    const auto settled = start + std::chrono::duration<double>(initialization_settle_time_);
+    const auto deadline = start + std::chrono::duration<double>(initialization_timeout_);
     while (true) {
         const auto status = resource_manager_->read(node_->now(), period_);
         if (status.result != hardware_interface::return_type::OK) {
@@ -430,8 +442,13 @@ bool ros2_control_crospi::wait_for_valid_state()
                 invalid.push_back(state.get_name());
             }
         }
-        if (invalid.empty()) {
+        if (invalid.empty() && std::chrono::steady_clock::now() >= settled) {
             read_states();
+            if (std::all_of(joint_pos_.data.begin(), joint_pos_.data.end(), [](float q) { return q == 0.0f; })) {
+                std::cerr << fmt::format("[{}] WARNING: all the initial joint positions are exactly zero. If this is "
+                                         "not the actual configuration of the robot, the hardware has not sent its "
+                                         "state yet: increase initialization_settle_time.", PLUGIN_NAME) << std::endl;
+            }
             return true;
         }
         if (std::chrono::steady_clock::now() > deadline) {

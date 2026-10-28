@@ -194,6 +194,7 @@ used for autocompletion, is the JSON schema
 | `hardware_joints` | no | Joint names in the `<ros2_control>` tag if they differ from `robot_joints` (e.g. with a `tf_prefix`). |
 | `hardware_components` | no | Hardware components (`<ros2_control name="...">`) to activate. Default: all. |
 | `initialization_timeout` | no | Time [s] to wait for valid joint positions after activation. Default: `5.0`. |
+| `initialization_settle_time` | no | Minimum time [s] during which the hardware is read after activation before the initial joint positions are taken (some hardware, e.g. UR, reports zeros until its first packets arrive). Default: `0.5`. |
 | `ros_node_name` | no | Name of the ROS 2 node of the driver (clock, logging, nodes of the hardware components). Default: `ros2_control_crospi`. Use different names for several drivers. |
 | `force_torque_sensor_name` | no | Sensor with `<name>/force.x ... torque.z` state interfaces (e.g. `tcp_fts_sensor` for UR). |
 | `pose_sensor_name` | no | Sensor with `<name>/position.x ... orientation.w` state interfaces (e.g. `tcp_pose` for UR). |
@@ -331,12 +332,46 @@ ros2 run crospi_core crospi_node --ros-args -p config_file:="\$[ros2_control_cro
 
 The output shows that the hardware `ur` is loaded from `ur_robot_driver/URPositionHardwareInterface`, activated
 (connection to the robot at `robot_ip`) and switched to the velocity interfaces, followed by
-`Initialized ros2_control robot driver ... initial joints [...]` with the actual joint positions of the robot. Then
-start the program with the *External Control* node on the teach pendant (not needed in headless mode): the driver
-logs that the robot is connected and ready to receive control commands.
+`Initialized ros2_control robot driver ... initial joints [...]` with the actual joint positions of the robot.
 
-Then run an orchestration, starting with the safest one, [Example 1](#example-1) (sine wave in the last joint), before
-running [Example 2](#example-2) or your own applications. Keep the emergency stop at hand.
+**Then start the program with the *External Control* node on the teach pendant** (press play; not needed in headless
+mode). Wait until the crospi_node terminal shows:
+
+```
+Robot control program is running and connected to the driver
+```
+
+Only then run an orchestration, starting with the safest one, [Example 1](#example-1) (sine wave in the last joint),
+before running [Example 2](#example-2) or your own applications. Keep the emergency stop at hand.
+
+### 5. Troubleshooting: the task runs but the robot does not move
+
+The UR hardware plugin only sends the joint commands to the robot while the *External Control* program is playing
+and connected to the driver. Otherwise it drops them silently: the eTaSL task executes and finishes normally, but
+the robot does not move. If the message `Robot control program is running and connected to the driver` does not
+appear:
+
+- Press play on the program with the *External Control* node **after** the crospi_node has printed
+  `Initialized ros2_control robot driver`. A program started before the driver cannot connect and stops.
+- The *Host IP* of the *External Control* URCap (Installation tab → URCaps → External Control) must be the IP of the
+  PC **as seen from the robot**. E.g. for URSim at `192.168.56.102` on a host-only network, it is the address of the PC
+  on that network (often `192.168.56.1`, check with `ip addr`), not `127.0.0.1` or the address of another interface.
+- The robot must reach the PC on the ports `50001`–`50004` (`reverse_port`, `script_sender_port`, `trajectory_port`,
+  `script_command_port`): check the firewall of the PC.
+- The robot must be powered on, its brakes released, and not in protective stop. In headless mode
+  (`"headless_mode": "true"`), it must be in *Remote Control* mode.
+
+Two other messages of the log are not the cause of this problem, but are worth fixing:
+
+- `The calibration parameters of the connected robot don't match the ones from the given kinematics config file`:
+  extract the calibration of the robot and pass it as `kinematics_params` (step 2).
+- `Failed to set Thread scheduling : Operation not permitted` (crospi_node) and `Your system/user seems not to be setup
+  for FIFO scheduling` (UR client library): the driver thread does not get real-time priority, which causes jitter at
+  `periodicity: 0.002`. Allow real-time scheduling for your user (e.g. `sudo groupadd realtime`,
+  `sudo usermod -aG realtime $USER`, add `@realtime - rtprio 99` to `/etc/security/limits.conf`, and log in again),
+  preferably with a lowlatency
+  or PREEMPT_RT kernel, see the
+  [ur_client_library real-time setup](https://docs.universal-robots.com/Universal_Robots_ROS_Documentation/doc/ur_client_library/doc/real_time.html).
 
 > **Note:** the setup file of this package is an example. In your own application, add the `ros2_control_crospi`
 > entries to the setup file of your application (e.g. in your `crospi_application_template`), together with the

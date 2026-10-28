@@ -66,6 +66,7 @@ class ros2_control_crospi : public RobotDriver {
         std::vector<std::string> hardware_components_;   // empty: all components of the robot description
         CommandInterface command_interface_;
         double initialization_timeout_;
+        double initialization_settle_time_;
         std::string ros_node_name_;
         std::string force_torque_sensor_name_;   // empty: not used
         std::string pose_sensor_name_;           // empty: not used

@@ -125,6 +125,12 @@
                     "exclusiveMinimum": 0,
                     "default": 5.0
                 },
+                "initialization_settle_time": {
+                    "description": "Optional. Minimum time in seconds during which the hardware is read after its activation, before the initial joint positions are taken. Some hardware reports placeholder values (e.g. zeros for a UR robot) until its first state packets arrive. Must be smaller than initialization_timeout. Defaults to 0.5.",
+                    "type": "number",
+                    "minimum": 0,
+                    "default": 0.5
+                },
                 "ros_node_name": {
                     "description": "Optional. Name of the ROS 2 node created by this driver. Its clock is used for the read()/write() calls of the hardware, and hardware components that need a ROS 2 node (e.g. for parameters, topics or services) are spun together with it in a separate (non real-time) thread. Defaults to ros2_control_crospi. Use different names if several ros2_control_crospi drivers are configured.",
                     "type": "string",
