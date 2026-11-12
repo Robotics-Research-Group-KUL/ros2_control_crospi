@@ -27,7 +27,7 @@
 #include <stdexcept>
 #include <sys/wait.h>
 
-#include <ament_index_cpp/get_package_share_directory.hpp>
+#include "crospi_utils/ament_index.hpp"  // works on every ROS 2 distribution
 #include <fmt/format.h>
 
 #include "crospi_utils/string_interpolate.hpp"
@@ -95,7 +95,7 @@ std::string resolve_path(const std::string& path)
         std::string relative = (slash == std::string::npos) ? "" : rest.substr(slash + 1);
         std::string share;
         try {
-            share = ament_index_cpp::get_package_share_directory(package);
+            share = etasl::get_package_share_directory(package);
         } catch (const std::exception& e) {
             throw std::runtime_error(fmt::format("[{}] Could not resolve '{}': package '{}' not found ({}).",
                                                  PLUGIN_NAME, path, package, e.what()));
